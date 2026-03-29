@@ -1,36 +1,48 @@
+import { useState } from "react";
 import { HAProvider, useHA } from "./ha/context";
+import { TabBar } from "./components/TabBar";
+import type { TabId } from "./components/TabBar";
+import { HomeTab } from "./tabs/HomeTab";
+import { LivingRoomTab } from "./tabs/LivingRoomTab";
+import { BedroomTab } from "./tabs/BedroomTab";
+import { MediaRoomTab } from "./tabs/MediaRoomTab";
+import { OutsideTab } from "./tabs/OutsideTab";
+import { MiscTab } from "./tabs/MiscTab";
 
-const STATUS_COLOR: Record<string, string> = {
-  connected: "#22c55e",
-  connecting: "#f59e0b",
-  authenticating: "#f59e0b",
-  disconnected: "#6b7280",
-  error: "#ef4444",
+const STATUS_DOT: Record<string, string> = {
+  connected: "bg-green-500",
+  connecting: "bg-yellow-500 animate-pulse",
+  authenticating: "bg-yellow-500 animate-pulse",
+  disconnected: "bg-gray-500",
+  error: "bg-red-500",
 };
 
-function StatusBadge() {
-  const { status, states } = useHA();
-  const entityCount = Object.keys(states).length;
+function Dashboard() {
+  const [tab, setTab] = useState<TabId>("home");
+  const { status } = useHA();
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "monospace" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <span
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            backgroundColor: STATUS_COLOR[status] ?? "#6b7280",
-            display: "inline-block",
-          }}
-        />
-        <span>HA WebSocket: {status}</span>
+    <div className="flex flex-col h-full">
+      {/* Status bar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0">
+        <span className="text-white/40 text-xs font-medium uppercase tracking-wider">Holdfast</span>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full ${STATUS_DOT[status] ?? "bg-gray-500"}`} />
+          <span className="text-white/30 text-xs capitalize">{status}</span>
+        </div>
       </div>
-      {status === "connected" && (
-        <p style={{ marginTop: "0.5rem", color: "#22c55e" }}>
-          {entityCount} entities loaded
-        </p>
-      )}
+
+      {/* Tab content */}
+      <div className="flex-1 min-h-0">
+        {tab === "home"    && <HomeTab />}
+        {tab === "living"  && <LivingRoomTab />}
+        {tab === "bedroom" && <BedroomTab />}
+        {tab === "media"   && <MediaRoomTab />}
+        {tab === "outside" && <OutsideTab />}
+        {tab === "misc"    && <MiscTab />}
+      </div>
+
+      <TabBar active={tab} onChange={setTab} />
     </div>
   );
 }
@@ -38,7 +50,7 @@ function StatusBadge() {
 export default function App() {
   return (
     <HAProvider>
-      <StatusBadge />
+      <Dashboard />
     </HAProvider>
   );
 }
