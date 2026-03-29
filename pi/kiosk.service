@@ -1,0 +1,17 @@
+[Unit]
+Description=HA Touchscreen Kiosk
+After=network.target
+
+[Service]
+User={{USER}}
+Group={{USER}}
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/{{USER}}/.Xauthority
+ExecStart=/bin/bash -c 'startx /usr/local/bin/start-kiosk -- -nocursor'
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
