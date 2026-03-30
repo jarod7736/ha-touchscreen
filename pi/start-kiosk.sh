@@ -1,32 +1,26 @@
 #!/usr/bin/env bash
-# Kiosk launcher — runs as the X session
-# Called by: startx /usr/local/bin/start-kiosk
+# Kiosk launcher — runs as a labwc autostart entry (~/.config/labwc/autostart)
+# Deploy: copy this file's contents into ~/.config/labwc/autostart on the Pi,
+#         or run: pi/deploy-kiosk.sh <user@pi-host>
 
 KIOSK_URL="http://localhost"
 LOG="/tmp/kiosk.log"
 
-# ── Display tweaks ────────────────────────────────────────────────────────────
-# Disable screen blanking and power saving
-xset s off
-xset s noblank
-xset -dpms
+# Disable screen blanking (via XWayland)
+DISPLAY=:0 xset s off &
+DISPLAY=:0 xset s noblank &
+DISPLAY=:0 xset -dpms &
 
-# Hide cursor after 3 seconds of inactivity
-unclutter -idle 3 -root &
+# Hide cursor after 3s idle
+DISPLAY=:0 unclutter -idle 3 -root &
 
-# ── Openbox (window manager) ─────────────────────────────────────────────────
-openbox &
-
-# ── Touch rotation (uncomment and adjust if touch is rotated/inverted) ───────
-# Find device id: xinput list
-# Flip matrix for 180°: xinput set-prop <id> "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1
-# Flip for 90° clockwise:  xinput set-prop <id> "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
-
-# ── Chromium kiosk ───────────────────────────────────────────────────────────
 # Wait for nginx to be ready
-sleep 1
+sleep 2
 
-chromium-browser \
+# Launch Chromium with native Wayland backend (required for USB touch support)
+# --ozone-platform=wayland overrides the RPi OS chromium wrapper default of x11
+chromium \
+  --ozone-platform=wayland \
   --kiosk \
   --noerrdialogs \
   --disable-infobars \
@@ -38,12 +32,7 @@ chromium-browser \
   --disable-features=TranslateUI \
   --disable-component-update \
   --no-first-run \
-  --fast \
-  --fast-start \
-  --disable-default-apps \
+  --password-store=basic \
   --touch-events=enabled \
   --enable-touch-drag-drop \
-  "$KIOSK_URL" >> "$LOG" 2>&1
-
-# If Chromium exits, restart the kiosk
-exec "$0"
+  "$KIOSK_URL" >> "$LOG" 2>&1 &
