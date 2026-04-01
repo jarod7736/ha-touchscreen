@@ -59,12 +59,13 @@ export function LightCard({ entityId, protect }: { entityId: string; protect?: A
   const isDimmable = rawBrightness !== undefined;
   const brightnessPercent = rawBrightness != null ? Math.round((rawBrightness / 255) * 100) : 0;
 
-  const toggle = () => {
-    callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId });
-  };
+  const guard = (action: () => void) => protect ? requireAuth(protect, action) : action();
+
+  const toggle = () => guard(() => callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId }));
 
   const handleBrightness = (e: React.ChangeEvent<HTMLInputElement>) => {
-    callService("light", "turn_on", { entity_id: entityId, brightness_pct: Number(e.target.value) });
+    const pct = Number(e.target.value);
+    guard(() => callService("light", "turn_on", { entity_id: entityId, brightness_pct: pct }));
   };
 
   return (
@@ -214,7 +215,7 @@ function dialFillLen(target: number): number {
   return frac * DIAL_TRACK_LEN;
 }
 
-export function ClimateCard({ entityId }: { entityId: string }) {
+export function ClimateCard({ entityId, protect }: { entityId: string; protect?: AuthLevel }) {
   const entity = useEntity(entityId);
   const { callService } = useHA();
   const { requireAuth } = useAuth();
@@ -229,16 +230,16 @@ export function ClimateCard({ entityId }: { entityId: string }) {
   const color = hvacColor(hvacMode);
   const fillLen = dialFillLen(target ?? current ?? CLIMATE_TEMP_MIN);
 
-  const bump = (delta: number) => {
-    const action = () => callService("climate", "set_temperature", {
-      entity_id: entityId,
-      temperature: (target ?? current) + delta,
-    });
-  };
+  const guard = (action: () => void) => protect ? requireAuth(protect, action) : action();
 
-  const setMode = (mode: string) => {
-    callService("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: mode });
-  };
+  const bump = (delta: number) => guard(() => callService("climate", "set_temperature", {
+    entity_id: entityId,
+    temperature: (target ?? current) + delta,
+  }));
+
+  const setMode = (mode: string) => guard(() =>
+    callService("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: mode })
+  );
 
   // SVG dial geometry: two circles, both use stroke-dasharray to form a ~330° arc.
   // The 53px gap (DIAL_TOTAL_CIRC - DIAL_TRACK_LEN) faces downward via rotate(90).
