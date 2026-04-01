@@ -295,7 +295,7 @@ export function ClimateCard({ entityId }: { entityId: string }) {
             onClick={(e) => { e.stopPropagation(); bump(1); }}
             disabled={isOff}
             className="w-12 h-12 rounded-full text-2xl font-bold flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
-            style={{ background: color, color: hvacMode === "off" ? "#fff" : "#000", transition: "background 300ms" }}
+            style={{ background: color, color: "#000", transition: "background 300ms" }}
           >
             +
           </button>
@@ -315,7 +315,7 @@ export function ClimateCard({ entityId }: { entityId: string }) {
               style={
                 active
                   ? { background: modeColor, color: mode === "off" ? "#fff" : "#000" }
-                  : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)" }
+                  : { background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.60)" }
               }
             >
               {mode.replace(/_/g, " ")}
