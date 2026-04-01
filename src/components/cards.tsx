@@ -243,7 +243,7 @@ export function ClimateCard({ entityId }: { entityId: string }) {
       <span className="text-xs tracking-widest uppercase text-white/50">{name}</span>
 
       {/* Dial */}
-      <div className="flex flex-col items-center" style={{ gap: "7px" }}>
+      <div className="flex flex-col items-center gap-[7px]">
         <div className="relative" style={{ width: 200, height: 200 }}>
           <svg width="200" height="200" viewBox="0 0 200 200">
             {/* Track ring */}
