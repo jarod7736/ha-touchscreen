@@ -214,7 +214,11 @@ export function ClimateCard({ entityId }: { entityId: string }) {
   const name = (entity.attributes.friendly_name as string) ?? entityId;
   const current = entity.attributes.current_temperature as number;
   const target = entity.attributes.temperature as number;
-  const hvacMode = entity.state;
+  const hvacMode = entity.state as string;
+  const hvacModes = (entity.attributes.hvac_modes as string[]) ?? [hvacMode];
+  const isOff = hvacMode === "off";
+  const color = hvacColor(hvacMode);
+  const fillLen = dialFillLen(target ?? current ?? CLIMATE_TEMP_MIN);
 
   const bump = (delta: number) => {
     callService("climate", "set_temperature", {
@@ -223,31 +227,102 @@ export function ClimateCard({ entityId }: { entityId: string }) {
     });
   };
 
+  const setMode = (mode: string) => {
+    callService("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: mode });
+  };
+
+  // SVG dial geometry: two circles, both use stroke-dasharray to form a ~330° arc.
+  // The 53px gap (DIAL_TOTAL_CIRC - DIAL_TRACK_LEN) faces downward via rotate(90).
+  // stroke-dashoffset="-26" centers the gap at the bottom.
+  const trackDash = `${DIAL_TRACK_LEN} ${DIAL_TOTAL_CIRC - DIAL_TRACK_LEN}`;
+  const fillDash = `${fillLen} ${DIAL_TOTAL_CIRC - fillLen}`;
+
   return (
-    <Card on={hvacMode !== "off"} className="col-span-2">
-      <span className="text-2xl">🌡️</span>
-      <CardLabel>{name}</CardLabel>
-      <div className="flex items-center justify-between mt-1">
-        <div>
-          <span className="text-2xl font-bold text-white">{current}°</span>
-          <span className="text-sm text-white/40 ml-1">→ {target}°</span>
+    <Card on={!isOff} className="col-span-2">
+      {/* Room name */}
+      <span className="text-xs tracking-widest uppercase text-white/50">{name}</span>
+
+      {/* Dial */}
+      <div className="flex flex-col items-center" style={{ gap: "7px" }}>
+        <div className="relative" style={{ width: 200, height: 200 }}>
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            {/* Track ring */}
+            <circle
+              cx="100" cy="100" r="82"
+              fill="none"
+              stroke="#ffffff12"
+              strokeWidth="16"
+              strokeLinecap="round"
+              strokeDasharray={trackDash}
+              strokeDashoffset="-26"
+              transform="rotate(90 100 100)"
+            />
+            {/* Fill ring */}
+            <circle
+              cx="100" cy="100" r="82"
+              fill="none"
+              stroke={color}
+              strokeWidth="16"
+              strokeLinecap="round"
+              strokeDasharray={fillDash}
+              strokeDashoffset="-26"
+              transform="rotate(90 100 100)"
+              style={{ transition: "stroke-dasharray 300ms ease, stroke 300ms ease" }}
+            />
+          </svg>
+
+          {/* Center overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+            <span className="text-[10px] uppercase tracking-widest text-white/40">current</span>
+            <span className="text-5xl font-bold text-white leading-none">{current}°</span>
+            <span className="text-sm" style={{ color, transition: "color 300ms" }}>
+              → {target}°
+            </span>
+          </div>
         </div>
-        <div className="flex gap-2">
+
+        {/* +/− row */}
+        <div className="flex items-center gap-5">
           <button
             onClick={(e) => { e.stopPropagation(); bump(-1); }}
-            className="w-10 h-10 rounded-xl bg-white/10 text-lg active:scale-90 flex items-center justify-center"
+            disabled={isOff}
+            className="w-12 h-12 rounded-full bg-white/10 text-2xl text-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
           >
             −
           </button>
+          <span className="text-xs uppercase tracking-wider text-white/40 w-14 text-center">target</span>
           <button
             onClick={(e) => { e.stopPropagation(); bump(1); }}
-            className="w-10 h-10 rounded-xl bg-white/10 text-lg active:scale-90 flex items-center justify-center"
+            disabled={isOff}
+            className="w-12 h-12 rounded-full text-2xl font-bold flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
+            style={{ background: color, color: hvacMode === "off" ? "#fff" : "#000", transition: "background 300ms" }}
           >
             +
           </button>
         </div>
       </div>
-      <CardState on={hvacMode !== "off"}>{hvacMode}</CardState>
+
+      {/* Mode pills */}
+      <div className="flex gap-2 flex-wrap justify-center">
+        {hvacModes.map((mode) => {
+          const active = mode === hvacMode;
+          const modeColor = hvacColor(mode);
+          return (
+            <button
+              key={mode}
+              onClick={(e) => { e.stopPropagation(); setMode(mode); }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all active:scale-95"
+              style={
+                active
+                  ? { background: modeColor, color: mode === "off" ? "#fff" : "#000" }
+                  : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)" }
+              }
+            >
+              {mode.replace(/_/g, " ")}
+            </button>
+          );
+        })}
+      </div>
     </Card>
   );
 }
