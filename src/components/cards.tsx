@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { useEntity, useHA } from "../ha/context";
+import { HA_HTTP_URL, HA_TOKEN } from "../ha/config";
+import { useAuth, type AuthLevel } from "../ha/auth";
 
 // ── Base card ────────────────────────────────────────────────────────────────
 
@@ -44,19 +47,39 @@ function CardState({ children, on }: { children: React.ReactNode; on?: boolean }
 
 // ── Light card ───────────────────────────────────────────────────────────────
 
-export function LightCard({ entityId }: { entityId: string }) {
+export function LightCard({ entityId, protect }: { entityId: string; protect?: AuthLevel }) {
   const entity = useEntity(entityId);
   const { callService } = useHA();
+  const { requireAuth } = useAuth();
   if (!entity) return null;
 
   const on = entity.state === "on";
   const name = (entity.attributes.friendly_name as string) ?? entityId;
+  const brightness = entity.attributes.brightness as number | undefined;
+  const brightnessPct = brightness != null ? Math.round((brightness / 255) * 100) : 100;
+
+  const guard = (action: () => void) => protect ? requireAuth(protect, action) : action();
 
   return (
-    <Card on={on} onClick={() => callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId })}>
+    <Card on={on} onClick={() => guard(() => callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId }))}>
       <span className="text-2xl">{on ? "💡" : "🔆"}</span>
       <CardLabel>{name}</CardLabel>
-      <CardState on={on}>{on ? "On" : "Off"}</CardState>
+      <CardState on={on}>{on ? `${brightnessPct}%` : "Off"}</CardState>
+      {on && (
+        <input
+          type="range"
+          min={1}
+          max={100}
+          value={brightnessPct}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            const pct = Number(e.target.value);
+            guard(() => callService("light", "turn_on", { entity_id: entityId, brightness_pct: pct }));
+          }}
+          className="w-full h-1 accent-amber-400 cursor-pointer mt-1"
+        />
+      )}
     </Card>
   );
 }
@@ -82,15 +105,17 @@ export function SwitchCard({ entityId, icon = "🔌" }: { entityId: string; icon
 
 // ── Scene card ───────────────────────────────────────────────────────────────
 
-export function SceneCard({ entityId, icon = "🎨" }: { entityId: string; icon?: string }) {
+export function SceneCard({ entityId, icon = "🎨", protect }: { entityId: string; icon?: string; protect?: AuthLevel }) {
   const entity = useEntity(entityId);
   const { callService } = useHA();
+  const { requireAuth } = useAuth();
   if (!entity) return null;
 
   const name = (entity.attributes.friendly_name as string) ?? entityId;
+  const action = () => callService("scene", "turn_on", { entity_id: entityId });
 
   return (
-    <Card onClick={() => callService("scene", "turn_on", { entity_id: entityId })}>
+    <Card onClick={() => protect ? requireAuth(protect, action) : action()}>
       <span className="text-2xl">{icon}</span>
       <CardLabel>{name}</CardLabel>
       <CardState>Activate</CardState>
@@ -100,18 +125,20 @@ export function SceneCard({ entityId, icon = "🎨" }: { entityId: string; icon?
 
 // ── Lock card ────────────────────────────────────────────────────────────────
 
-export function LockCard({ entityId }: { entityId: string }) {
+export function LockCard({ entityId, protect }: { entityId: string; protect?: AuthLevel }) {
   const entity = useEntity(entityId);
   const { callService } = useHA();
+  const { requireAuth } = useAuth();
   if (!entity) return null;
 
   const locked = entity.state === "locked";
   const name = (entity.attributes.friendly_name as string) ?? entityId;
+  const action = () => callService("lock", locked ? "unlock" : "lock", { entity_id: entityId });
 
   return (
     <Card
       on={locked}
-      onClick={() => callService("lock", locked ? "unlock" : "lock", { entity_id: entityId })}
+      onClick={() => protect ? requireAuth(protect, action) : action()}
       className="col-span-2"
     >
       <span className="text-2xl">{locked ? "🔒" : "🔓"}</span>
@@ -123,9 +150,10 @@ export function LockCard({ entityId }: { entityId: string }) {
 
 // ── Climate card ─────────────────────────────────────────────────────────────
 
-export function ClimateCard({ entityId }: { entityId: string }) {
+export function ClimateCard({ entityId, protect }: { entityId: string; protect?: AuthLevel }) {
   const entity = useEntity(entityId);
   const { callService } = useHA();
+  const { requireAuth } = useAuth();
   if (!entity) return null;
 
   const name = (entity.attributes.friendly_name as string) ?? entityId;
@@ -134,10 +162,11 @@ export function ClimateCard({ entityId }: { entityId: string }) {
   const hvacMode = entity.state;
 
   const bump = (delta: number) => {
-    callService("climate", "set_temperature", {
+    const action = () => callService("climate", "set_temperature", {
       entity_id: entityId,
       temperature: (target ?? current) + delta,
     });
+    protect ? requireAuth(protect, action) : action();
   };
 
   return (
@@ -171,9 +200,10 @@ export function ClimateCard({ entityId }: { entityId: string }) {
 
 // ── Alarm card ───────────────────────────────────────────────────────────────
 
-export function AlarmCard({ entityId }: { entityId: string }) {
+export function AlarmCard({ entityId, protect }: { entityId: string; protect?: AuthLevel }) {
   const entity = useEntity(entityId);
   const { callService } = useHA();
+  const { requireAuth } = useAuth();
   if (!entity) return null;
 
   const state = entity.state;
@@ -181,11 +211,10 @@ export function AlarmCard({ entityId }: { entityId: string }) {
   const armed = state !== "disarmed";
 
   const toggle = () => {
-    if (armed) {
-      callService("alarm_control_panel", "alarm_disarm", { entity_id: entityId });
-    } else {
-      callService("alarm_control_panel", "alarm_arm_away", { entity_id: entityId });
-    }
+    const action = () => armed
+      ? callService("alarm_control_panel", "alarm_disarm", { entity_id: entityId })
+      : callService("alarm_control_panel", "alarm_arm_away", { entity_id: entityId });
+    protect ? requireAuth(protect, action) : action();
   };
 
   const stateColor = state === "disarmed"
@@ -263,6 +292,28 @@ export function SensorCard({ entityId, icon = "📊" }: { entityId: string; icon
         {unit && <span className="text-sm text-white/40 ml-1">{unit}</span>}
       </span>
     </Card>
+  );
+}
+
+// ── Camera card ──────────────────────────────────────────────────────────────
+
+export function CameraCard({ entityId, label }: { entityId: string; label?: string }) {
+  const entity = useEntity(entityId);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const name = label ?? (entity?.attributes.friendly_name as string) ?? entityId;
+  const src = `${HA_HTTP_URL}/api/camera_proxy/${entityId}?token=${HA_TOKEN}&_t=${tick}`;
+
+  return (
+    <div className="col-span-2 bg-black/30 border border-white/10 rounded-2xl overflow-hidden">
+      <img src={src} alt={name} className="w-full object-cover" />
+      <div className="px-3 py-2 text-xs text-white/40">{name}</div>
+    </div>
   );
 }
 

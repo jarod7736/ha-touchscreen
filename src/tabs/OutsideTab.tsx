@@ -1,11 +1,17 @@
-import { AlarmCard, LightCard, LockCard, Section, SwitchCard } from "../components/cards";
+import { AlarmCard, CameraCard, LightCard, LockCard, Section, SwitchCard } from "../components/cards";
 
 export function OutsideTab() {
   return (
     <div className="p-4 overflow-y-auto h-full">
       <Section title="Security">
-        <AlarmCard entityId="alarm_control_panel.alarmo" />
-        <LockCard entityId="lock.entryway_front_door" />
+        <AlarmCard entityId="alarm_control_panel.alarmo" protect="admin" />
+        <LockCard entityId="lock.entryway_front_door" protect="admin" />
+      </Section>
+
+      <Section title="Cameras">
+        <CameraCard entityId="camera.front_door_doorbell" />
+        <CameraCard entityId="camera.front_yard_camera" />
+        <CameraCard entityId="camera.backyard_camera" />
       </Section>
 
       <Section title="Lights">

@@ -1,4 +1,4 @@
-import { LightCard, MediaCard, SceneCard, Section } from "../components/cards";
+import { CameraCard, LightCard, MediaCard, SceneCard, Section } from "../components/cards";
 
 export function LivingRoomTab() {
   return (
@@ -19,6 +19,10 @@ export function LivingRoomTab() {
 
       <Section title="TV">
         <MediaCard entityId="media_player.lg_webos_tv_oled55g2pua_2" />
+      </Section>
+
+      <Section title="Cameras">
+        <CameraCard entityId="camera.living_room_camera" />
       </Section>
     </div>
   );

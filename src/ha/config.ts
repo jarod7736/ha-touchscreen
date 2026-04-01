@@ -5,3 +5,6 @@
 
 export const HA_URL = import.meta.env.VITE_HA_URL ?? "ws://homeassistant.local:8123/api/websocket";
 export const HA_TOKEN = import.meta.env.VITE_HA_TOKEN ?? "";
+
+// HTTP base URL derived from WebSocket URL (ws → http, wss → https)
+export const HA_HTTP_URL = HA_URL.replace(/^ws(s?)/, "http$1").replace(/\/api\/websocket$/, "");

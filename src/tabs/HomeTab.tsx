@@ -1,8 +1,14 @@
+import { useEffect, useState } from "react";
 import { AlarmCard, ClimateCard, LightCard, LockCard, Section, SensorCard } from "../components/cards";
 import { useHA } from "../ha/context";
 
 function Clock() {
-  const now = new Date();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="text-center py-4">
       <div className="text-6xl font-thin tabular-nums">
@@ -28,13 +34,13 @@ export function HomeTab() {
       <Clock />
 
       <Section title="Security">
-        <AlarmCard entityId="alarm_control_panel.alarmo" />
-        <LockCard entityId="lock.entryway_front_door" />
+        <AlarmCard entityId="alarm_control_panel.alarmo" protect="admin" />
+        <LockCard entityId="lock.entryway_front_door" protect="admin" />
       </Section>
 
       <Section title="Climate">
-        <ClimateCard entityId="climate.thermostat" />
-        <ClimateCard entityId="climate.thermostat_2" />
+        <ClimateCard entityId="climate.thermostat" protect="admin" />
+        <ClimateCard entityId="climate.thermostat_2" protect="admin" />
       </Section>
 
       <Section title="Lights">

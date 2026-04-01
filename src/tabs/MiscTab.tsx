@@ -1,4 +1,4 @@
-import { LightCard, Section, SwitchCard } from "../components/cards";
+import { CameraCard, LightCard, Section, SwitchCard } from "../components/cards";
 
 export function MiscTab() {
   return (
@@ -22,6 +22,12 @@ export function MiscTab() {
 
       <Section title="Automations">
         <SwitchCard entityId="switch.automation_wake_up" icon="⏰" />
+      </Section>
+
+      <Section title="Cameras">
+        <CameraCard entityId="camera.kitchen_camera" />
+        <CameraCard entityId="camera.stairway_camera" />
+        <CameraCard entityId="camera.backyard_camera" />
       </Section>
     </div>
   );
