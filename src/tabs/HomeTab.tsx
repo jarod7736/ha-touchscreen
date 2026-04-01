@@ -6,7 +6,7 @@ function Clock() {
   return (
     <div className="text-center py-4">
       <div className="text-6xl font-thin tabular-nums">
-        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
       </div>
       <div className="text-white/40 text-sm mt-1">
         {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}

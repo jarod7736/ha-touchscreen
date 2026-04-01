@@ -1,4 +1,4 @@
-import { LightCard, SceneCard, Section } from "../components/cards";
+import { LightCard, Section } from "../components/cards";
 
 export function BedroomTab() {
   return (
@@ -12,7 +12,7 @@ export function BedroomTab() {
         <LightCard entityId="light.hue_color_lamp_3" />
       </Section>
 
-      <Section title="Scenes">
+      {/* <Section title="Scenes">
         <SceneCard entityId="scene.bedroom_bright" icon="☀️" />
         <SceneCard entityId="scene.bedroom_relax" icon="😌" />
         <SceneCard entityId="scene.bedroom_nightlight" icon="🌙" />
@@ -27,7 +27,7 @@ export function BedroomTab() {
         <SceneCard entityId="scene.bedroom_memento" icon="🎭" />
         <SceneCard entityId="scene.bedroom_rosy" icon="🌸" />
         <SceneCard entityId="scene.bedroom_first_light" icon="🌤️" />
-      </Section>
+      </Section> */}
     </div>
   );
 }
