@@ -51,13 +51,72 @@ export function LightCard({ entityId }: { entityId: string }) {
 
   const on = entity.state === "on";
   const name = (entity.attributes.friendly_name as string) ?? entityId;
+  const rawBrightness = entity.attributes.brightness as number | null | undefined;
+  const isDimmable = rawBrightness !== undefined;
+  const brightnessPercent = rawBrightness != null ? Math.round((rawBrightness / 255) * 100) : 0;
+
+  const toggle = () => {
+    callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId });
+  };
+
+  const handleBrightness = (e: React.ChangeEvent<HTMLInputElement>) => {
+    callService("light", "turn_on", { entity_id: entityId, brightness_pct: Number(e.target.value) });
+  };
 
   return (
-    <Card on={on} onClick={() => callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId })}>
-      <span className="text-2xl">{on ? "💡" : "🔆"}</span>
-      <CardLabel>{name}</CardLabel>
-      <CardState on={on}>{on ? "On" : "Off"}</CardState>
-    </Card>
+    <div
+      className={[
+        "flex flex-col gap-2 rounded-2xl p-4 transition-all",
+        on
+          ? "bg-amber-400/20 border border-amber-400/40"
+          : "bg-white/5 border border-white/10",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xl flex-shrink-0">{on ? "💡" : "🔆"}</span>
+          <span className="text-sm text-white/60 leading-tight truncate">{name}</span>
+        </div>
+        <button
+          onClick={toggle}
+          className={[
+            "relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200",
+            on ? "bg-amber-400" : "bg-white/20",
+          ].join(" ")}
+          aria-label={on ? "Turn off" : "Turn on"}
+        >
+          <span
+            className={[
+              "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+              on ? "translate-x-[1.375rem]" : "translate-x-0.5",
+            ].join(" ")}
+          />
+        </button>
+      </div>
+
+      {isDimmable && (
+        <div className="flex flex-col gap-1 mt-1">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={brightnessPercent}
+            disabled={!on}
+            onChange={handleBrightness}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={[
+              "w-full accent-amber-400 cursor-pointer",
+              !on ? "opacity-30 cursor-not-allowed" : "",
+            ].join(" ")}
+          />
+          <div className="flex justify-between text-xs text-white/30">
+            <span>Dim</span>
+            <span>{brightnessPercent}%</span>
+            <span>Bright</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -122,6 +181,30 @@ export function LockCard({ entityId }: { entityId: string }) {
 }
 
 // ── Climate card ─────────────────────────────────────────────────────────────
+
+const CLIMATE_TEMP_MIN = 60;
+const CLIMATE_TEMP_MAX = 85;
+const DIAL_TRACK_LEN = 462;   // stroke length of the ~330° arc (r=82, full circ≈515)
+const DIAL_TOTAL_CIRC = 515;  // 2π×82 rounded
+
+const HVAC_MODE_COLOR: Record<string, string> = {
+  heat: "#f59e0b",
+  cool: "#60a5fa",
+  auto: "#34d399",
+  heat_cool: "#34d399",
+  dry:  "#fb923c",
+  fan_only: "#94a3b8",
+  off:  "#6b7280",
+};
+
+function hvacColor(mode: string): string {
+  return HVAC_MODE_COLOR[mode] ?? "#6b7280";
+}
+
+function dialFillLen(target: number): number {
+  const frac = Math.max(0, Math.min(1, (target - CLIMATE_TEMP_MIN) / (CLIMATE_TEMP_MAX - CLIMATE_TEMP_MIN)));
+  return frac * DIAL_TRACK_LEN;
+}
 
 export function ClimateCard({ entityId }: { entityId: string }) {
   const entity = useEntity(entityId);
