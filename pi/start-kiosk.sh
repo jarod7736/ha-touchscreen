@@ -19,7 +19,7 @@ sleep 2
 
 # Launch Chromium with native Wayland backend (required for USB touch support)
 # --ozone-platform=wayland overrides the RPi OS chromium wrapper default of x11
-chromium \
+WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/$(id -u) chromium \
   --ozone-platform=wayland \
   --kiosk \
   --noerrdialogs \
