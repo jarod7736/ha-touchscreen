@@ -1,4 +1,4 @@
-import { AlarmCard, CameraCard, LightCard, LockCard, Section, SwitchCard } from "../components/cards";
+import { AlarmCard, CameraCard, LightCard, LockCard, Section } from "../components/cards";
 
 export function OutsideTab() {
   return (
@@ -19,7 +19,7 @@ export function OutsideTab() {
         <LightCard entityId="light.front_hall_1" />
       </Section>
 
-      <Section title="Irrigation">
+      {/* <Section title="Irrigation">
         <SwitchCard entityId="switch.zone_1_front_between_houses" icon="💧" />
         <SwitchCard entityId="switch.zone_2_sidewalk" icon="💧" />
         <SwitchCard entityId="switch.zone_3_mid_front" icon="💧" />
@@ -28,7 +28,7 @@ export function OutsideTab() {
         <SwitchCard entityId="switch.zone_6_front_rotor" icon="💧" />
         <SwitchCard entityId="switch.zone_7_big_backyard" icon="💧" />
         <SwitchCard entityId="switch.zone_8" icon="💧" />
-      </Section>
+      </Section> */}
     </div>
   );
 }

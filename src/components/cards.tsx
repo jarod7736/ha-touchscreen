@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useEntity, useHA } from "../ha/context";
-import { HA_HTTP_URL, HA_TOKEN } from "../ha/config";
+import { HA_HTTP_URL } from "../ha/config";
 import { useAuth, type AuthLevel } from "../ha/auth";
 
 // ── Base card ────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export function LightCard({ entityId, protect }: { entityId: string; protect?: A
         >
           <span
             className={[
-              "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+              "absolute top-0.5 left-0 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
               on ? "translate-x-[1.375rem]" : "translate-x-0.5",
             ].join(" ")}
           />
@@ -180,7 +180,6 @@ export function LockCard({ entityId, protect }: { entityId: string; protect?: Au
     <Card
       on={locked}
       onClick={() => protect ? requireAuth(protect, action) : action()}
-      className="col-span-2"
     >
       <span className="text-2xl">{locked ? "🔒" : "🔓"}</span>
       <CardLabel>{name}</CardLabel>
@@ -197,13 +196,13 @@ const DIAL_TRACK_LEN = 462;   // stroke length of the ~330° arc (r=82, full cir
 const DIAL_TOTAL_CIRC = 515;  // 2π×82 rounded
 
 const HVAC_MODE_COLOR: Record<string, string> = {
-  heat: "#f59e0b",
-  cool: "#60a5fa",
-  auto: "#34d399",
+  heat:      "#ef4444",  // red
+  cool:      "#60a5fa",  // blue
+  auto:      "#34d399",
   heat_cool: "#34d399",
-  dry:  "#fb923c",
-  fan_only: "#94a3b8",
-  off:  "#6b7280",
+  dry:       "#fb923c",
+  fan_only:  "#94a3b8",
+  off:       "#6b7280",
 };
 
 function hvacColor(mode: string): string {
@@ -223,105 +222,132 @@ export function ClimateCard({ entityId, protect }: { entityId: string; protect?:
 
   const name = (entity.attributes.friendly_name as string) ?? entityId;
   const current = entity.attributes.current_temperature as number;
-  const target = entity.attributes.temperature as number;
+  const target = entity.attributes.temperature as number | undefined;
+  const targetHigh = entity.attributes.target_temp_high as number | undefined;
+  const targetLow  = entity.attributes.target_temp_low  as number | undefined;
   const hvacMode = entity.state as string;
   const hvacModes = (entity.attributes.hvac_modes as string[]) ?? [hvacMode];
   const isOff = hvacMode === "off";
+  const isHeatCool = hvacMode === "heat_cool";
   const color = hvacColor(hvacMode);
-  const fillLen = dialFillLen(target ?? current ?? CLIMATE_TEMP_MIN);
 
   const guard = (action: () => void) => protect ? requireAuth(protect, action) : action();
 
-  const bump = (delta: number) => guard(() => callService("climate", "set_temperature", {
-    entity_id: entityId,
-    temperature: (target ?? current) + delta,
-  }));
+  const bump = (delta: number) => guard(() => {
+    if (isHeatCool) {
+      callService("climate", "set_temperature", {
+        entity_id: entityId,
+        target_temp_high: (targetHigh ?? current) + delta,
+        target_temp_low:  (targetLow  ?? current) + delta,
+      });
+    } else {
+      callService("climate", "set_temperature", {
+        entity_id: entityId,
+        temperature: (target ?? current) + delta,
+      });
+    }
+  });
 
   const setMode = (mode: string) => guard(() =>
     callService("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: mode })
   );
 
-  // SVG dial geometry: two circles, both use stroke-dasharray to form a ~330° arc.
-  // The 53px gap (DIAL_TOTAL_CIRC - DIAL_TRACK_LEN) faces downward via rotate(90).
-  // stroke-dashoffset="-26" centers the gap at the bottom.
+  // SVG dial: ~330° arc, gap centered at bottom via rotate(90) + dashoffset=-26
   const trackDash = `${DIAL_TRACK_LEN} ${DIAL_TOTAL_CIRC - DIAL_TRACK_LEN}`;
-  const fillDash = `${fillLen} ${DIAL_TOTAL_CIRC - fillLen}`;
+
+  // heat_cool: blue (cooling) arc drawn first, red (heating) arc on top
+  const coolFill = isHeatCool ? dialFillLen(targetHigh ?? current) : 0;
+  const heatFill = isHeatCool ? dialFillLen(targetLow  ?? current) : 0;
+  const singleFill = !isHeatCool ? dialFillLen(target ?? current ?? CLIMATE_TEMP_MIN) : 0;
+
+  const cardBg     = isOff ? "rgba(255,255,255,0.05)" : color + "22";
+  const cardBorder = isOff ? "rgba(255,255,255,0.10)" : color + "66";
 
   return (
-    <Card on={!isOff} className="col-span-2">
-      {/* Room name */}
-      <span className="text-xs tracking-widest uppercase text-white/50">{name}</span>
+    <div
+      className="flex flex-col gap-2 rounded-2xl p-3"
+      style={{ background: cardBg, border: `1px solid ${cardBorder}`, transition: "background 300ms, border-color 300ms" }}
+    >
+      <span className="text-xs tracking-widest uppercase text-white/50 truncate">{name}</span>
 
       {/* Dial */}
-      <div className="flex flex-col items-center gap-[7px]">
-        <div className="relative" style={{ width: 200, height: 200 }}>
-          <svg width="200" height="200" viewBox="0 0 200 200">
-            {/* Track ring */}
-            <circle
-              cx="100" cy="100" r="82"
-              fill="none"
-              stroke="#ffffff12"
-              strokeWidth="16"
-              strokeLinecap="round"
-              strokeDasharray={trackDash}
-              strokeDashoffset="-26"
-              transform="rotate(90 100 100)"
-            />
-            {/* Fill ring */}
-            <circle
-              cx="100" cy="100" r="82"
-              fill="none"
-              stroke={color}
-              strokeWidth="16"
-              strokeLinecap="round"
-              strokeDasharray={fillDash}
-              strokeDashoffset="-26"
-              transform="rotate(90 100 100)"
-              style={{ transition: "stroke-dasharray 300ms ease, stroke 300ms ease" }}
-            />
-          </svg>
+      <div className="flex flex-col items-center gap-1.5">
+        {/* Responsive square container — SVG + text overlay */}
+        <div className="relative w-full mx-auto aspect-square" style={{ maxWidth: 160 }}>
+          <svg viewBox="0 0 200 200" className="w-full h-full">
+            {/* Track */}
+            <circle cx="100" cy="100" r="82" fill="none"
+              stroke="#ffffff12" strokeWidth="16" strokeLinecap="round"
+              strokeDasharray={trackDash} strokeDashoffset="-26"
+              transform="rotate(90 100 100)" />
 
-          {/* Center overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
-            <span className="text-[10px] uppercase tracking-widest text-white/40">current</span>
-            <span className="text-5xl font-bold text-white leading-none">{current}°</span>
-            <span className="text-sm" style={{ color, transition: "color 300ms" }}>
-              → {target}°
-            </span>
-          </div>
+            {isHeatCool ? (
+              <>
+                {/* Cooling arc (blue) — longer, drawn first */}
+                <circle cx="100" cy="100" r="82" fill="none"
+                  stroke="#60a5fa" strokeWidth="16" strokeLinecap="round"
+                  strokeDasharray={`${coolFill} ${DIAL_TOTAL_CIRC - coolFill}`}
+                  strokeDashoffset="-26" transform="rotate(90 100 100)"
+                  style={{ transition: "stroke-dasharray 300ms ease" }} />
+                {/* Heating arc (red) — shorter, drawn on top */}
+                <circle cx="100" cy="100" r="82" fill="none"
+                  stroke="#ef4444" strokeWidth="16" strokeLinecap="round"
+                  strokeDasharray={`${heatFill} ${DIAL_TOTAL_CIRC - heatFill}`}
+                  strokeDashoffset="-26" transform="rotate(90 100 100)"
+                  style={{ transition: "stroke-dasharray 300ms ease" }} />
+              </>
+            ) : (
+              <circle cx="100" cy="100" r="82" fill="none"
+                stroke={color} strokeWidth="16" strokeLinecap="round"
+                strokeDasharray={`${singleFill} ${DIAL_TOTAL_CIRC - singleFill}`}
+                strokeDashoffset="-26" transform="rotate(90 100 100)"
+                style={{ transition: "stroke-dasharray 300ms ease, stroke 300ms ease" }} />
+            )}
+
+            {/* Center text embedded in SVG for reliable responsive scaling */}
+            <text x="100" y="90" textAnchor="middle"
+              fill="rgba(255,255,255,0.4)" fontSize="9" letterSpacing="2">CURRENT</text>
+            <text x="100" y="118" textAnchor="middle"
+              fill="white" fontSize="36" fontWeight="bold">{current}°</text>
+            {isHeatCool ? (
+              <>
+                <text x="76" y="136" textAnchor="middle" fill="#ef4444" fontSize="12">{targetLow}°</text>
+                <text x="124" y="136" textAnchor="middle" fill="#60a5fa" fontSize="12">{targetHigh}°</text>
+              </>
+            ) : (
+              <text x="100" y="136" textAnchor="middle" fontSize="12"
+                fill={color} style={{ transition: "fill 300ms" }}>→ {target}°</text>
+            )}
+          </svg>
         </div>
 
         {/* +/− row */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3">
           <button
-            onClick={(e) => { e.stopPropagation(); bump(-1); }}
+            onClick={() => bump(-1)}
             disabled={isOff}
-            className="w-12 h-12 rounded-full bg-white/10 text-2xl text-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
-          >
-            −
-          </button>
-          <span className="text-xs uppercase tracking-wider text-white/40 w-14 text-center">target</span>
+            className="w-10 h-10 rounded-full bg-white/10 text-xl text-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
+          >−</button>
+          <span className="text-xs uppercase tracking-wider text-white/40 w-10 text-center">target</span>
           <button
-            onClick={(e) => { e.stopPropagation(); bump(1); }}
+            onClick={() => bump(1)}
             disabled={isOff}
-            className="w-12 h-12 rounded-full text-2xl font-bold flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
-            style={{ background: color, color: "#000", transition: "background 300ms" }}
-          >
-            +
-          </button>
+            className="w-10 h-10 rounded-full text-xl font-bold flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
+            style={{ background: isHeatCool ? "#34d399" : color, color: "#000", transition: "background 300ms" }}
+          >+</button>
         </div>
       </div>
 
       {/* Mode pills */}
-      <div className="flex gap-2 flex-wrap justify-center">
+      <div className="flex gap-1 flex-wrap justify-center">
         {hvacModes.map((mode) => {
           const active = mode === hvacMode;
           const modeColor = hvacColor(mode);
           return (
             <button
               key={mode}
-              onClick={(e) => { e.stopPropagation(); setMode(mode); }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all active:scale-95"
+              onClick={() => setMode(mode)}
+              className="px-2 py-1 rounded-full text-xs font-medium capitalize transition-all active:scale-95"
               style={
                 active
                   ? { background: modeColor, color: mode === "off" ? "#fff" : "#000" }
@@ -333,7 +359,7 @@ export function ClimateCard({ entityId, protect }: { entityId: string; protect?:
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -363,7 +389,7 @@ export function AlarmCard({ entityId, protect }: { entityId: string; protect?: A
     : "text-red-400";
 
   return (
-    <Card on={armed} onClick={toggle} className="col-span-2">
+    <Card on={armed} onClick={toggle}>
       <span className="text-2xl">{armed ? "🔴" : "🟢"}</span>
       <CardLabel>{name}</CardLabel>
       <span className={["text-base font-medium capitalize", stateColor].join(" ")}>
@@ -386,7 +412,10 @@ export function MediaCard({ entityId }: { entityId: string }) {
   const active = state === "playing" || state === "on";
 
   return (
-    <Card on={active} className="col-span-2">
+    <div className={[
+      "flex flex-col gap-2 rounded-2xl p-4 transition-all",
+      active ? "bg-amber-400/20 border border-amber-400/40" : "bg-white/5 border border-white/10",
+    ].join(" ")}>
       <span className="text-2xl">📺</span>
       <CardLabel>{name}</CardLabel>
       <div className="flex items-center justify-between">
@@ -396,20 +425,20 @@ export function MediaCard({ entityId }: { entityId: string }) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={(e) => { e.stopPropagation(); callService("media_player", "media_play_pause", { entity_id: entityId }); }}
+            onClick={() => callService("media_player", "media_play_pause", { entity_id: entityId })}
             className="w-10 h-10 rounded-xl bg-white/10 text-lg active:scale-90 flex items-center justify-center"
           >
             {state === "playing" ? "⏸" : "▶️"}
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); callService("media_player", "turn_off", { entity_id: entityId }); }}
+            onClick={() => callService("media_player", "turn_off", { entity_id: entityId })}
             className="w-10 h-10 rounded-xl bg-white/10 text-lg active:scale-90 flex items-center justify-center"
           >
             ⏹
           </button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -446,11 +475,21 @@ export function CameraCard({ entityId, label }: { entityId: string; label?: stri
   }, []);
 
   const name = label ?? (entity?.attributes.friendly_name as string) ?? entityId;
-  const src = `${HA_HTTP_URL}/api/camera_proxy/${entityId}?token=${HA_TOKEN}&_t=${tick}`;
+  // HA camera_proxy requires the entity's own access_token, not the long-lived API token
+  const accessToken = entity?.attributes.access_token as string | undefined;
+  const src = accessToken
+    ? `${HA_HTTP_URL}/api/camera_proxy/${entityId}?token=${accessToken}&_t=${tick}`
+    : undefined;
 
   return (
-    <div className="col-span-2 bg-black/30 border border-white/10 rounded-2xl overflow-hidden">
-      <img src={src} alt={name} className="w-full object-cover" />
+    <div className="bg-black/30 border border-white/10 rounded-2xl overflow-hidden">
+      {src ? (
+        <img src={src} alt={name} className="w-full object-cover" />
+      ) : (
+        <div className="w-full aspect-video flex items-center justify-center text-white/20 text-xs">
+          Loading…
+        </div>
+      )}
       <div className="px-3 py-2 text-xs text-white/40">{name}</div>
     </div>
   );
@@ -462,7 +501,7 @@ export function Section({ title, children }: { title: string; children: React.Re
   return (
     <div className="mb-6">
       <h2 className="text-xs font-semibold uppercase tracking-widest text-white/30 mb-3 px-1">{title}</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {children}
       </div>
     </div>

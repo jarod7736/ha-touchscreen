@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlarmCard, ClimateCard, LightCard, LockCard, Section, SensorCard } from "../components/cards";
-import { useHA } from "../ha/context";
+import { ClimateCard, Section, SensorCard } from "../components/cards";
 
 function Clock() {
   const [now, setNow] = useState(() => new Date());
@@ -22,29 +21,23 @@ function Clock() {
 }
 
 export function HomeTab() {
-  const { states } = useHA();
-
-  // Count active lights
-  const activeLights = Object.values(states).filter(
-    (s) => s.entity_id.startsWith("light.") && s.state === "on"
-  ).length;
 
   return (
     <div className="p-4 overflow-y-auto h-full">
       <Clock />
 
-      <Section title="Security">
+      {/* <Section title="Security">
         <AlarmCard entityId="alarm_control_panel.alarmo" protect="admin" />
         <LockCard entityId="lock.entryway_front_door" protect="admin" />
-      </Section>
+      </Section> */}
 
       <Section title="Climate">
         <ClimateCard entityId="climate.thermostat" protect="admin" />
         <ClimateCard entityId="climate.thermostat_2" protect="admin" />
       </Section>
-
+{/* 
       <Section title="Lights">
-        <div className="col-span-2 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-3">
+        <div className="col-span-3 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-3">
           <span className="text-3xl">💡</span>
           <div>
             <p className="text-white font-medium">{activeLights} lights on</p>
@@ -55,7 +48,7 @@ export function HomeTab() {
         <LightCard entityId="light.master_ceiling_lights" />
         <LightCard entityId="light.bedroom" />
         <LightCard entityId="light.media_room_lights" />
-      </Section>
+      </Section> */}
 
       <Section title="Weather">
         <SensorCard entityId="weather.home" icon="🌤️" />
